@@ -8,6 +8,7 @@
     <AssemblyName>GSM_CHECK_TOOL</AssemblyName>
     <RootNamespace>GSMCheckTool</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>assets\gsm-check-tool.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup><PackageReference Include="System.Management" Version="8.0.0" /></ItemGroup>
 </Project>
