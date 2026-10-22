@@ -6,7 +6,7 @@ namespace GSMCheckTool;
 public sealed class MainForm : Form
 {
     readonly Color bg=Color.FromArgb(10,15,26), panel=Color.FromArgb(18,27,43), panel2=Color.FromArgb(23,35,54), blue=Color.FromArgb(38,132,255), white=Color.FromArgb(240,245,252), muted=Color.FromArgb(151,168,190);
-    readonly ComboBox devices=new(); readonly DataGridView grid=new(); readonly Label status=new(); readonly Button scan=new(); readonly Button read=new(); readonly Button export=new(); DeviceInfo? current;
+    readonly ComboBox devices=new(); readonly DataGridView grid=new(); readonly Label status=new(); Button scan=new(); Button read=new(); Button export=new(); DeviceInfo? current;
     public MainForm()
     {
         Text="GSM CHECK TOOL"; StartPosition=FormStartPosition.CenterScreen; MinimumSize=new Size(1000,680); Size=new Size(1240,820);
