@@ -8,7 +8,7 @@ namespace GSMCheckTool;
 public sealed class MainForm : Form
 {
     static readonly Color Bg=Color.FromArgb(7,12,23), CardBg=Color.FromArgb(13,23,40), Card2=Color.FromArgb(17,32,54), Line=Color.FromArgb(35,59,88), Blue=Color.FromArgb(0,132,255), Cyan=Color.FromArgb(0,213,255), White=Color.FromArgb(239,246,255), Muted=Color.FromArgb(143,164,190), Green=Color.FromArgb(0,213,126);
-    readonly ComboBox devices=new(); readonly DataGridView grid=new(); readonly Label status=new(); readonly DevicePreview preview=new(); readonly BatteryCard battery=new(); readonly Label modelTitle=new(), platformTag=new(), detailCount=new(); readonly Panel storageCard=new(); readonly Label storageValue=new();
+    readonly ComboBox devices=new(); readonly DataGridView grid=new(); readonly Label status=new(); readonly DevicePreview preview=new(); readonly BatteryCard battery=new(); readonly Label modelTitle=new(), platformTag=new(), detailCount=new(); Panel storageCard=new(); Label storageValue=new();
     Button scan=new(),read=new(),export=new(),clear=new(); DeviceInfo? current; bool busy;
     public MainForm()
     {
