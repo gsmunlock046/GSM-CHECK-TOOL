@@ -76,8 +76,6 @@ public static class DeviceReader
         var bat = await CommandRunner.RunAsync(adb, $"-s {Q(id)} shell dumpsys battery");
         var level = Regex.Match(bat.Output, @"level:\s*(\d+)");
         d.Fields["Bateria (%)"] = level.Success ? level.Groups[1].Value + "%" : "Não disponível";
-        var health = Regex.Match(bat.Output, @"health:\s*(\d+)");
-        d.Fields["Estado da bateria"] = health.Success ? HealthName(health.Groups[1].Value) : "Não disponível";
         var status = Regex.Match(bat.Output, @"status:\s*(\d+)");
         d.Fields["Estado de carga"] = status.Success ? ChargeName(status.Groups[1].Value) : "Não disponível";
         var temp = Regex.Match(bat.Output, @"temperature:\s*(-?\d+)");
@@ -125,12 +123,10 @@ public static class DeviceReader
             d.Fields["Bateria (%)"] = m.Success ? m.Groups[1].Value + "%" : "Não exposta por esta versão do iOS/ferramenta";
         }
         else d.Fields["Bateria (%)"] = "Ferramenta de diagnóstico não disponível";
-        d.Fields["Saúde da bateria"] = "Pode não ser disponibilizada via USB; consulte Ajustes > Bateria > Saúde da Bateria no iPhone.";
         return d;
     }
 
     static string Clean(string s) => s.Trim().Trim('\0');
     static string Q(string s) => "\"" + s.Replace("\"", "\\\"") + "\"";
-    static string HealthName(string s) => s switch { "2" => "Boa", "3" => "Superaquecimento", "4" => "Falha", "5" => "Sobretensão", "7" => "Fria", _ => "Código " + s };
     static string ChargeName(string s) => s switch { "2" => "Carregando", "3" => "Descarregando", "4" => "Sem bateria", "5" => "Cheia", _ => "Desconhecido" };
 }
