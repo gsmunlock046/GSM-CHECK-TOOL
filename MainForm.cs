@@ -7,7 +7,7 @@ namespace GSMCheckTool;
 
 public sealed class MainForm : Form
 {
-    static readonly Color Bg=Color.FromArgb(7,12,23), CardBg=Color.FromArgb(13,23,40), Card2=Color.FromArgb(17,32,54), Line=Color.FromArgb(35,59,88), Blue=Color.FromArgb(0,132,255), Cyan=Color.FromArgb(0,213,255), White=Color.FromArgb(239,246,255), Muted=Color.FromArgb(143,164,190), Green=Color.FromArgb(0,213,126);
+    static readonly Color Bg=Color.FromArgb(6,10,20), CardBg=Color.FromArgb(12,21,37), Card2=Color.FromArgb(16,31,52), RowAlt=Color.FromArgb(14,27,46), Line=Color.FromArgb(35,58,86), Blue=Color.FromArgb(0,132,255), Cyan=Color.FromArgb(0,213,255), White=Color.FromArgb(239,246,255), Muted=Color.FromArgb(143,164,190), Green=Color.FromArgb(0,213,126);
     readonly ComboBox devices=new(); readonly DataGridView grid=new(); readonly Label status=new(); readonly DevicePreview preview=new(); readonly BatteryCard battery=new(); readonly Label modelTitle=new(), platformTag=new(), detailCount=new(); Panel storageCard=new(); Label storageValue=new();
     Button scan=new(),read=new(),export=new(),clear=new(); DeviceInfo? current; bool busy;
     public MainForm()
@@ -17,12 +17,12 @@ public sealed class MainForm : Form
     }
     void BuildUI()
     {
-        var root=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=1,RowCount=3,Padding=new Padding(18),BackColor=Bg};
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute,86)); root.RowStyles.Add(new RowStyle(SizeType.Absolute,62)); root.RowStyles.Add(new RowStyle(SizeType.Percent,100)); Controls.Add(root);
+        var root=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=1,RowCount=4,Padding=new Padding(18,14,18,8),BackColor=Bg};
+        root.RowStyles.Add(new RowStyle(SizeType.Absolute,86)); root.RowStyles.Add(new RowStyle(SizeType.Absolute,62)); root.RowStyles.Add(new RowStyle(SizeType.Percent,100)); root.RowStyles.Add(new RowStyle(SizeType.Absolute,30)); Controls.Add(root);
         var header=new Panel{Dock=DockStyle.Fill,BackColor=Bg}; root.Controls.Add(header,0,0);
         header.Controls.Add(new BrandMark{Location=new Point(0,3),Size=new Size(66,66)});
-        header.Controls.Add(new Label{Text="GSM CHECK TOOL",Font=new Font("Segoe UI",23,FontStyle.Bold),ForeColor=White,AutoSize=true,Location=new Point(80,3)});
-        header.Controls.Add(new Label{Text="DIAGNÓSTICO INTELIGENTE DE DISPOSITIVOS",Font=new Font("Segoe UI",9,FontStyle.Bold),ForeColor=Muted,AutoSize=true,Location=new Point(83,42)});
+        header.Controls.Add(new Label{Text="GSM CHECK TOOL",Font=new Font("Segoe UI",24,FontStyle.Bold),ForeColor=White,AutoSize=true,Location=new Point(80,1)});
+        header.Controls.Add(new Label{Text="DIAGNÓSTICO INTELIGENTE DE DISPOSITIVOS",Font=new Font("Segoe UI",9,FontStyle.Bold),ForeColor=Color.FromArgb(105,190,255),AutoSize=true,Location=new Point(83,43)});
         var version=new Label{Text="ANDROID  •  IPHONE",AutoSize=true,ForeColor=Cyan,BackColor=Card2,Padding=new Padding(14,9,14,9),Anchor=AnchorStyles.Top|AnchorStyles.Right};header.Controls.Add(version);header.Resize+=(_,_)=>version.Location=new Point(header.ClientSize.Width-version.Width-4,12);
         header.Paint+=(_,e)=>{using var p=new Pen(Line);e.Graphics.DrawLine(p,0,header.Height-2,header.Width,header.Height-2);};
         var toolbar=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=5,RowCount=1,BackColor=Bg};toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,174));toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,174));toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,112));toolbar.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,180));root.Controls.Add(toolbar,0,1);
@@ -47,16 +47,14 @@ public sealed class MainForm : Form
         grid.Dock=DockStyle.Fill;grid.BackgroundColor=CardBg;grid.BorderStyle=BorderStyle.None;grid.GridColor=Line;grid.EnableHeadersVisualStyles=false;grid.ColumnCount=2;
         grid.Columns[0].Name="INFORMAÇÃO";grid.Columns[0].Width=220;grid.Columns[1].Name="VALOR";grid.Columns[1].AutoSizeMode=DataGridViewAutoSizeColumnMode.Fill;
         grid.RowHeadersVisible=false;grid.AllowUserToAddRows=false;grid.AllowUserToDeleteRows=false;grid.ReadOnly=true;grid.MultiSelect=false;grid.SelectionMode=DataGridViewSelectionMode.FullRowSelect;grid.AutoSizeRowsMode=DataGridViewAutoSizeRowsMode.AllCells;
-        grid.DefaultCellStyle.BackColor=CardBg;grid.DefaultCellStyle.ForeColor=White;grid.DefaultCellStyle.SelectionBackColor=Color.FromArgb(21,67,111);grid.DefaultCellStyle.SelectionForeColor=White;grid.DefaultCellStyle.WrapMode=DataGridViewTriState.True;grid.DefaultCellStyle.Padding=new Padding(8,5,8,5);
-        grid.ColumnHeadersDefaultCellStyle.BackColor=Card2;grid.ColumnHeadersDefaultCellStyle.ForeColor=Color.FromArgb(152,212,255);grid.ColumnHeadersDefaultCellStyle.Font=new Font("Segoe UI",9,FontStyle.Bold);grid.ColumnHeadersHeight=38;grid.RowTemplate.Height=34;report.Controls.Add(grid);
-        status.Text="●  Pronto — conecte o aparelho, autorize o acesso e clique em Buscar.";status.Dock=DockStyle.Bottom;status.Height=28;status.ForeColor=Muted;status.TextAlign=ContentAlignment.MiddleLeft;root.Controls.Add(status);
-        root.SetRow(status,2); // status is handled by the main footer below
+        grid.DefaultCellStyle.BackColor=CardBg;grid.DefaultCellStyle.ForeColor=White;grid.DefaultCellStyle.SelectionBackColor=Color.FromArgb(21,67,111);grid.DefaultCellStyle.SelectionForeColor=White;grid.DefaultCellStyle.WrapMode=DataGridViewTriState.True;grid.DefaultCellStyle.Padding=new Padding(9,6,9,6);grid.AlternatingRowsDefaultCellStyle.BackColor=RowAlt;grid.AlternatingRowsDefaultCellStyle.ForeColor=White;grid.CellBorderStyle=DataGridViewCellBorderStyle.SingleHorizontal;grid.ColumnHeadersBorderStyle=DataGridViewHeaderBorderStyle.None;
+        grid.ColumnHeadersDefaultCellStyle.BackColor=Card2;grid.ColumnHeadersDefaultCellStyle.ForeColor=Color.FromArgb(152,212,255);grid.ColumnHeadersDefaultCellStyle.Font=new Font("Segoe UI",9,FontStyle.Bold);grid.ColumnHeadersHeight=38;grid.RowTemplate.Height=38;report.Controls.Add(grid);
+        status.Text="●  Pronto — conecte o aparelho, autorize o acesso e clique em Buscar.";status.Dock=DockStyle.Fill;status.Height=30;status.ForeColor=Muted;status.TextAlign=ContentAlignment.MiddleLeft;root.Controls.Add(status,0,3);
         var footer=new Label{Text="GSM CHECK TOOL  •  Os campos variam conforme o fabricante, a versão do sistema e as permissões USB.",Dock=DockStyle.Bottom,Height=23,ForeColor=Muted,TextAlign=ContentAlignment.MiddleLeft};Controls.Add(footer);footer.BringToFront();
     }
     static Panel Card(string title)
     {
-        var p=new Panel{Dock=DockStyle.Fill,BackColor=CardBg,Margin=new Padding(0,0,0,10),Padding=new Padding(10)};
-        p.Paint+=(_,e)=>{using var pen=new Pen(Line);e.Graphics.DrawRectangle(pen,0,0,p.Width-1,p.Height-1);};
+        var p=new ModernCard{Dock=DockStyle.Fill,BackColor=CardBg,Margin=new Padding(0,0,0,10),Padding=new Padding(12)};
         p.Controls.Add(new Label{Text=title,Dock=DockStyle.Top,Height=30,ForeColor=Color.FromArgb(142,207,255),Font=new Font("Segoe UI",9,FontStyle.Bold),TextAlign=ContentAlignment.MiddleLeft});
         return p;
     }
@@ -116,6 +114,11 @@ public sealed class MainForm : Form
         File.WriteAllText(sfd.FileName,sb.ToString(),Encoding.UTF8);status.Text="●  Relatório exportado: "+sfd.FileName;
     }
     sealed class DeviceChoice{public DeviceInfo Info{get;}public DeviceChoice(DeviceInfo i)=>Info=i;public override string ToString()=> $"{Info.Platform}  |  {Info.Id}";}
+}
+sealed class ModernCard : Panel
+{
+    public ModernCard(){DoubleBuffered=true;}
+    protected override void OnPaint(PaintEventArgs e){base.OnPaint(e);e.Graphics.SmoothingMode=SmoothingMode.AntiAlias;using var pen=new Pen(Color.FromArgb(40,66,98),1);e.Graphics.DrawRound(new Rectangle(0,0,Width-1,Height-1),12,pen);}
 }
 sealed class BrandMark : Panel
 {
