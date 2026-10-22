@@ -5,79 +5,63 @@ namespace GSMCheckTool;
 
 public sealed class MainForm : Form
 {
-    readonly Color bg=Color.FromArgb(10,15,26), panel=Color.FromArgb(18,27,43), panel2=Color.FromArgb(23,35,54), blue=Color.FromArgb(38,132,255), white=Color.FromArgb(240,245,252), muted=Color.FromArgb(151,168,190);
-    readonly ComboBox devices=new(); readonly DataGridView grid=new(); Label status=new(); Button scan=new(); Button read=new(); Button export=new(); DeviceInfo? current;
-    public MainForm()
-    {
-        Text="GSM CHECK TOOL"; StartPosition=FormStartPosition.CenterScreen; MinimumSize=new Size(1000,680); Size=new Size(1240,820);
-        BackColor=bg; ForeColor=white; Font=new Font("Segoe UI",10); BuildUI(); Shown+=async(_,_)=>await ScanAsync();
-    }
+    static readonly Color Bg=Color.FromArgb(5,11,22), Panel=Color.FromArgb(9,21,39), Panel2=Color.FromArgb(12,29,51), Line=Color.FromArgb(26,73,111), Blue=Color.FromArgb(0,132,255), Cyan=Color.FromArgb(0,215,255), White=Color.FromArgb(239,247,255), Muted=Color.FromArgb(147,174,204);
+    readonly ComboBox devices=new(); readonly DataGridView grid=new(); Label status=new(); readonly DevicePreview preview=new(); readonly BatteryGauge battery=new(); readonly Label modelTitle=new(); readonly Label platformTag=new(); readonly Label storageText=new(); Button scan=new(),read=new(),export=new(),clear=new(); DeviceInfo? current;
+    public MainForm(){Text="GSM CHECK TOOL";StartPosition=FormStartPosition.CenterScreen;MinimumSize=new Size(1050,700);Size=new Size(1500,920);BackColor=Bg;ForeColor=White;Font=new Font("Segoe UI",9.5f);DoubleBuffered=true;BuildUI();Shown+=async(_,_)=>await ScanAsync();}
     void BuildUI()
     {
-        var root=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=1,RowCount=3,Padding=new Padding(22),BackColor=bg};
-        root.RowStyles.Add(new RowStyle(SizeType.Absolute,76)); root.RowStyles.Add(new RowStyle(SizeType.Absolute,165)); root.RowStyles.Add(new RowStyle(SizeType.Percent,100)); Controls.Add(root);
-        var header=new Panel{Dock=DockStyle.Fill,BackColor=bg}; root.Controls.Add(header,0,0);
-        var logo=new Panel{Location=new Point(0,8),Size=new Size(54,54),BackColor=blue};
-        logo.Paint+=(_,e)=>{e.Graphics.SmoothingMode=SmoothingMode.AntiAlias; using var p=new Pen(Color.White,3);e.Graphics.DrawArc(p,12,12,30,30,35,280);e.Graphics.DrawLine(p,26,14,26,39);e.Graphics.DrawLine(p,17,27,35,27);}; header.Controls.Add(logo);
-        header.Controls.Add(new Label{Text="GSM CHECK TOOL",Font=new Font("Segoe UI",19,FontStyle.Bold),ForeColor=white,AutoSize=true,Location=new Point(68,5)});
-        header.Controls.Add(new Label{Text="DIAGNÓSTICO USB  •  ANDROID + IPHONE",Font=new Font("Segoe UI",9,FontStyle.Bold),ForeColor=muted,AutoSize=true,Location=new Point(70,40)});
-        var pill=new Label{Text="DEVICE INSPECTOR",AutoSize=true,ForeColor=Color.FromArgb(151,202,255),BackColor=panel2,Padding=new Padding(13,8,13,8),Anchor=AnchorStyles.Top|AnchorStyles.Right,Location=new Point(Width-270,17)};
-        header.Controls.Add(pill); header.Resize+=(_,_)=>pill.Left=header.ClientSize.Width-pill.Width-8;
-        var hero=new Panel{Dock=DockStyle.Fill,BackColor=panel,Padding=new Padding(20)}; root.Controls.Add(hero,0,1);
-        hero.Paint+=(_,e)=>{using var p=new Pen(Color.FromArgb(42,59,82));e.Graphics.DrawRectangle(p,0,0,hero.Width-1,hero.Height-1);};
-        hero.Controls.Add(new Label{Text="Leia seu aparelho. Conheça cada detalhe.",Font=new Font("Segoe UI",17,FontStyle.Bold),ForeColor=white,AutoSize=true,Location=new Point(20,15)});
-        hero.Controls.Add(new Label{Text="Conecte via USB, autorize o acesso no aparelho e inicie a leitura.",Font=new Font("Segoe UI",10),ForeColor=muted,AutoSize=true,Location=new Point(22,49)});
-        devices.DropDownStyle=ComboBoxStyle.DropDownList; devices.Location=new Point(22,91); devices.Width=380; devices.Height=34; devices.BackColor=panel2; devices.ForeColor=white; devices.FlatStyle=FlatStyle.Flat; hero.Controls.Add(devices);
-        scan=MakeButton("↻  BUSCAR APARELHOS",blue); scan.Location=new Point(420,88); scan.Size=new Size(190,40); scan.Click+=async(_,_)=>await ScanAsync(); hero.Controls.Add(scan);
-        read=MakeButton("⌕  LER INFORMAÇÕES",Color.FromArgb(36,54,78)); read.Location=new Point(620,88); read.Size=new Size(190,40); read.Click+=async(_,_)=>await ReadAsync(); hero.Controls.Add(read);
-        export=MakeButton("⇩  EXPORTAR RELATÓRIO",Color.FromArgb(36,54,78)); export.Location=new Point(820,88); export.Size=new Size(200,40); export.Click+=(_,_)=>ExportReport(); hero.Controls.Add(export);
-        status=new Label{Text="Pronto para conectar",Dock=DockStyle.Bottom,Height=24,ForeColor=muted,TextAlign=ContentAlignment.MiddleLeft}; hero.Controls.Add(status);
-        var body=new Panel{Dock=DockStyle.Fill,BackColor=panel,Padding=new Padding(12)}; root.Controls.Add(body,0,2);
-        body.Controls.Add(new Label{Text="RELATÓRIO DO DISPOSITIVO",Dock=DockStyle.Top,Height=34,Font=new Font("Segoe UI",10,FontStyle.Bold),ForeColor=Color.FromArgb(151,202,255),TextAlign=ContentAlignment.MiddleLeft});
-        grid.Dock=DockStyle.Fill; grid.BackgroundColor=panel; grid.BorderStyle=BorderStyle.None; grid.GridColor=Color.FromArgb(38,52,73); grid.EnableHeadersVisualStyles=false; grid.ColumnCount=2;
-        grid.Columns[0].Name="Informação"; grid.Columns[0].Width=270; grid.Columns[1].Name="Valor"; grid.Columns[1].AutoSizeMode=DataGridViewAutoSizeColumnMode.Fill;
-        grid.RowHeadersVisible=false; grid.AllowUserToAddRows=false; grid.AllowUserToDeleteRows=false; grid.ReadOnly=true; grid.SelectionMode=DataGridViewSelectionMode.FullRowSelect; grid.AutoSizeRowsMode=DataGridViewAutoSizeRowsMode.AllCells;
-        grid.DefaultCellStyle.BackColor=panel; grid.DefaultCellStyle.ForeColor=white; grid.DefaultCellStyle.SelectionBackColor=Color.FromArgb(32,75,127); grid.DefaultCellStyle.SelectionForeColor=Color.White; grid.DefaultCellStyle.WrapMode=DataGridViewTriState.True;
-        grid.ColumnHeadersDefaultCellStyle.BackColor=panel2; grid.ColumnHeadersDefaultCellStyle.ForeColor=white; grid.ColumnHeadersDefaultCellStyle.Font=new Font("Segoe UI",9,FontStyle.Bold); grid.ColumnHeadersHeight=38; grid.RowTemplate.Height=34; body.Controls.Add(grid);
-        var footer=new Label{Text="GSM CHECK TOOL  •  Os dados dependem do fabricante, das permissões e da versão do sistema.",Dock=DockStyle.Bottom,Height=28,ForeColor=muted,TextAlign=ContentAlignment.MiddleLeft}; body.Controls.Add(footer); footer.BringToFront();
+        var root=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=1,RowCount=3,Padding=new Padding(14),BackColor=Bg};root.RowStyles.Add(new RowStyle(SizeType.Absolute,112));root.RowStyles.Add(new RowStyle(SizeType.Absolute,64));root.RowStyles.Add(new RowStyle(SizeType.Percent,100));Controls.Add(root);
+        var header=new Panel{Dock=DockStyle.Fill,BackColor=Bg};root.Controls.Add(header,0,0);header.Controls.Add(new BrandMark{Location=new Point(0,6),Size=new Size(82,82)});
+        header.Controls.Add(new Label{Text="GSM",Font=new Font("Segoe UI",27,FontStyle.Bold),ForeColor=White,AutoSize=true,Location=new Point(96,7)});
+        header.Controls.Add(new Label{Text="CHECK TOOL",Font=new Font("Segoe UI",26,FontStyle.Bold|FontStyle.Italic),ForeColor=Blue,AutoSize=true,Location=new Point(176,7)});
+        header.Controls.Add(new Label{Text="INFORMAÇÕES COMPLETAS DO SEU APARELHO",Font=new Font("Segoe UI",10,FontStyle.Bold),ForeColor=Muted,AutoSize=true,Location=new Point(100,53)});
+        header.Controls.Add(new Label{Text="● IPHONE",AutoSize=true,ForeColor=White,BackColor=Panel2,Padding=new Padding(12,7,12,7),Location=new Point(100,78)});
+        header.Controls.Add(new Label{Text="● ANDROID",AutoSize=true,ForeColor=Color.LightGreen,BackColor=Panel2,Padding=new Padding(12,7,12,7),Location=new Point(205,78)});
+        var badge=new Label{Text="USB DEVICE INSPECTOR  •  v1.0",AutoSize=true,ForeColor=Color.FromArgb(120,195,255),BackColor=Panel2,Padding=new Padding(14,9,14,9),Anchor=AnchorStyles.Top|AnchorStyles.Right};header.Controls.Add(badge);header.Resize+=(_,_)=>badge.Location=new Point(header.ClientSize.Width-badge.Width-6,20);header.Paint+=(_,e)=>{using var p=new Pen(Line);e.Graphics.DrawLine(p,0,header.Height-2,header.Width,header.Height-2);};
+        var toolbar=new Panel{Dock=DockStyle.Fill,BackColor=Bg};root.Controls.Add(toolbar,0,1);devices.DropDownStyle=ComboBoxStyle.DropDownList;devices.SetBounds(0,10,250,40);devices.BackColor=Panel2;devices.ForeColor=White;devices.FlatStyle=FlatStyle.Flat;toolbar.Controls.Add(devices);
+        scan=MakeButton("⌕  BUSCAR APARELHO",Blue);scan.SetBounds(260,8,185,42);scan.Click+=async(_,_)=>await ScanAsync();toolbar.Controls.Add(scan);
+        read=MakeButton("▤  LER INFORMAÇÕES",Color.FromArgb(0,145,88));read.SetBounds(450,8,185,42);read.Click+=async(_,_)=>await ReadAsync();toolbar.Controls.Add(read);
+        clear=MakeButton("⌫ LIMPAR",Panel2);clear.SetBounds(640,8,110,42);clear.Click+=(_,_)=>ClearReport();toolbar.Controls.Add(clear);
+        export=MakeButton("⇩ SALVAR RELATÓRIO",Panel2);export.SetBounds(755,8,185,42);export.Click+=(_,_)=>ExportReport();toolbar.Controls.Add(export);
+        status=new Label{Text="● Pronto para conectar seu aparelho via USB",Dock=DockStyle.Bottom,Height=20,ForeColor=Muted,TextAlign=ContentAlignment.MiddleLeft};toolbar.Controls.Add(status);
+        var main=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=2,RowCount=1,BackColor=Bg};main.ColumnStyles.Add(new ColumnStyle(SizeType.Absolute,160));main.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100));root.Controls.Add(main,0,2);
+        var side=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=1,RowCount=9,BackColor=Bg,Padding=new Padding(0,0,8,0)};for(int i=0;i<8;i++)side.RowStyles.Add(new RowStyle(SizeType.Absolute,47));side.RowStyles.Add(new RowStyle(SizeType.Percent,100));main.Controls.Add(side,0,0);
+        string[] nav={"⌂  INÍCIO","⌕  LER APARELHO","●  IPHONE","●  ANDROID","ⓘ  INFORMAÇÕES","▤  RELATÓRIO","⚒  FERRAMENTAS","⚙  CONFIGURAÇÕES"};
+        for(int i=0;i<nav.Length;i++){var b=MakeButton(nav[i],i==0?Color.FromArgb(0,75,158):Panel2);b.TextAlign=ContentAlignment.MiddleLeft;b.Padding=new Padding(12,0,0,0);b.Margin=new Padding(0,0,0,5);b.Click+=(_,_)=>{if(b.Text.Contains("LER APARELHO"))_ = ScanAsync();else if(b.Text.Contains("RELATÓRIO"))ExportReport();};side.Controls.Add(b,0,i);}
+        var foot=new Panel{Dock=DockStyle.Fill,BackColor=Panel};foot.Controls.Add(new Label{Text="GSM CHECK TOOL\nDIAGNÓSTICO USB\n\nAndroid • iPhone",Dock=DockStyle.Fill,ForeColor=Muted,TextAlign=ContentAlignment.MiddleCenter,Font=new Font("Segoe UI",9,FontStyle.Bold)});side.Controls.Add(foot,0,8);
+        var dash=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=3,RowCount=2,BackColor=Bg};dash.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,27));dash.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,45));dash.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,28));dash.RowStyles.Add(new RowStyle(SizeType.Percent,80));dash.RowStyles.Add(new RowStyle(SizeType.Percent,20));main.Controls.Add(dash,1,0);
+        var deviceCard=Card("APARELHO DETECTADO");deviceCard.Padding=new Padding(9);dash.Controls.Add(deviceCard,0,0);preview.Dock=DockStyle.Fill;deviceCard.Controls.Add(preview);
+        var deviceFooter=new Panel{Dock=DockStyle.Bottom,Height=70,BackColor=Panel};modelTitle.Text="Nenhum aparelho";modelTitle.Font=new Font("Segoe UI",14,FontStyle.Bold);modelTitle.ForeColor=White;modelTitle.TextAlign=ContentAlignment.MiddleCenter;modelTitle.Dock=DockStyle.Top;modelTitle.Height=34;platformTag.Text="Conecte um celular por USB";platformTag.ForeColor=Cyan;platformTag.TextAlign=ContentAlignment.TopCenter;platformTag.Dock=DockStyle.Fill;deviceFooter.Controls.Add(platformTag);deviceFooter.Controls.Add(modelTitle);deviceCard.Controls.Add(deviceFooter);
+        var infoCard=Card("INFORMAÇÕES DO APARELHO");infoCard.Padding=new Padding(8);dash.Controls.Add(infoCard,1,0);grid.Dock=DockStyle.Fill;grid.BackgroundColor=Panel;grid.BorderStyle=BorderStyle.None;grid.GridColor=Color.FromArgb(20,49,75);grid.EnableHeadersVisualStyles=false;grid.ColumnCount=2;grid.Columns[0].Name="INFORMAÇÃO";grid.Columns[0].Width=180;grid.Columns[1].Name="VALOR";grid.Columns[1].AutoSizeMode=DataGridViewAutoSizeColumnMode.Fill;grid.RowHeadersVisible=false;grid.AllowUserToAddRows=false;grid.AllowUserToDeleteRows=false;grid.ReadOnly=true;grid.SelectionMode=DataGridViewSelectionMode.FullRowSelect;grid.AutoSizeRowsMode=DataGridViewAutoSizeRowsMode.AllCells;grid.DefaultCellStyle.BackColor=Panel;grid.DefaultCellStyle.ForeColor=White;grid.DefaultCellStyle.SelectionBackColor=Color.FromArgb(18,66,110);grid.DefaultCellStyle.SelectionForeColor=White;grid.DefaultCellStyle.WrapMode=DataGridViewTriState.True;grid.DefaultCellStyle.Padding=new Padding(4);grid.ColumnHeadersDefaultCellStyle.BackColor=Panel2;grid.ColumnHeadersDefaultCellStyle.ForeColor=Color.FromArgb(155,213,255);grid.ColumnHeadersDefaultCellStyle.Font=new Font("Segoe UI",9,FontStyle.Bold);grid.ColumnHeadersHeight=34;grid.RowTemplate.Height=30;infoCard.Controls.Add(grid);
+        var right=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=1,RowCount=3,BackColor=Bg,Padding=new Padding(8,0,0,0)};right.RowStyles.Add(new RowStyle(SizeType.Percent,48));right.RowStyles.Add(new RowStyle(SizeType.Percent,24));right.RowStyles.Add(new RowStyle(SizeType.Percent,28));dash.Controls.Add(right,2,0);
+        var batCard=Card("▣  BATERIA");right.Controls.Add(batCard,0,0);battery.Dock=DockStyle.Fill;batCard.Controls.Add(battery);
+        var storeCard=Card("▰  ARMAZENAMENTO");right.Controls.Add(storeCard,0,1);storageText.Text="Capacidade: não disponível\nDetalhes no relatório completo";storageText.Dock=DockStyle.Fill;storageText.ForeColor=White;storageText.Padding=new Padding(10,6,0,0);storeCard.Controls.Add(storageText);
+        var connCard=Card("⌁  ESTADO DO DISPOSITIVO");right.Controls.Add(connCard,0,2);connCard.Controls.Add(new Label{Text="USB  •  Conexão\n\nPermissões\n\nRelatório",Dock=DockStyle.Fill,ForeColor=Muted,Padding=new Padding(10,6,0,0)});
+        var specs=new TableLayoutPanel{Dock=DockStyle.Fill,ColumnCount=6,RowCount=1,BackColor=Bg,Padding=new Padding(0,8,0,0)};for(int i=0;i<6;i++)specs.ColumnStyles.Add(new ColumnStyle(SizeType.Percent,100f/6));dash.Controls.Add(specs,0,1);dash.SetColumnSpan(specs,3);
+        string[] titles={"HARDWARE","SISTEMA","BATERIA","ARMAZENAMENTO","IDENTIFICAÇÃO","OUTROS DADOS"};string[] vals={"CPU / chipset","Versão do sistema","Carga atual","Capacidade","Serial / IMEI","Detalhes extras"};
+        for(int i=0;i<6;i++){var c=Card(titles[i]);c.Margin=new Padding(0,0,6,0);c.Controls.Add(new Label{Text=vals[i],Dock=DockStyle.Fill,ForeColor=Muted,TextAlign=ContentAlignment.MiddleCenter});specs.Controls.Add(c,i,0);}
     }
-    Button MakeButton(string text,Color color){var b=new Button{Text=text,FlatStyle=FlatStyle.Flat,BackColor=color,ForeColor=white,Font=new Font("Segoe UI",9,FontStyle.Bold),Cursor=Cursors.Hand};b.FlatAppearance.BorderSize=0;return b;}
-    async Task ScanAsync()
-    {
-        scan.Enabled=false; status.Text="Procurando dispositivos USB...";
-        try
-        {
-            var found=await DeviceReader.DetectAsync(); devices.Items.Clear();
-            foreach(var d in found) devices.Items.Add(new DeviceChoice(d));
-            if(devices.Items.Count>0){devices.SelectedIndex=0;status.Text=$"{devices.Items.Count} aparelho(s) detectado(s).";}
-            else status.Text="Nenhum aparelho detectado. Verifique cabo, drivers e autorização USB.";
-        }
-        catch(Exception ex){status.Text="Erro na busca: "+ex.Message;}
-        finally{scan.Enabled=true;}
-    }
-    async Task ReadAsync()
-    {
-        if(devices.SelectedItem is not DeviceChoice choice){status.Text="Conecte e selecione um aparelho primeiro.";return;}
-        read.Enabled=false; grid.Rows.Clear(); status.Text="Lendo informações do dispositivo...";
-        try
-        {
-            current=choice.Info.Platform=="Android"?await DeviceReader.ReadAndroidAsync(choice.Info.Id):await DeviceReader.ReadIPhoneAsync(choice.Info.Id);
-            grid.Rows.Add("Plataforma",current.Platform); grid.Rows.Add("Identificador USB / UDID",current.Id);
-            foreach(var f in current.Fields) grid.Rows.Add(f.Key,f.Value);
-            status.Text="Leitura concluída. Confira os campos não disponibilizados pelo sistema.";
-        }
-        catch(Exception ex){status.Text="Não foi possível ler: "+ex.Message;MessageBox.Show(this,ex.Message,"GSM CHECK TOOL",MessageBoxButtons.OK,MessageBoxIcon.Warning);}
-        finally{read.Enabled=true;}
-    }
-    void ExportReport()
-    {
-        if(current==null){MessageBox.Show(this,"Faça a leitura de um aparelho antes de exportar.","GSM CHECK TOOL",MessageBoxButtons.OK,MessageBoxIcon.Information);return;}
-        using var sfd=new SaveFileDialog{Filter="Relatório de texto (*.txt)|*.txt",FileName=$"GSM_CHECK_{current.Platform}_{DateTime.Now:yyyyMMdd_HHmmss}.txt"};
-        if(sfd.ShowDialog(this)!=DialogResult.OK)return;
-        var sb=new StringBuilder(); sb.AppendLine("GSM CHECK TOOL — RELATÓRIO"); sb.AppendLine("Data: "+DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));
-        sb.AppendLine("Plataforma: "+current.Platform); sb.AppendLine("ID/UDID: "+current.Id); sb.AppendLine(new string('-',60));
-        foreach(var f in current.Fields) sb.AppendLine($"{f.Key}: {f.Value}");
-        File.WriteAllText(sfd.FileName,sb.ToString(),Encoding.UTF8); status.Text="Relatório exportado: "+sfd.FileName;
-    }
-    sealed class DeviceChoice{public DeviceInfo Info{get;} public DeviceChoice(DeviceInfo info)=>Info=info; public override string ToString()=> $"{Info.Platform}  |  {Info.Id}";}
+    static Panel Card(string title){var p=new Panel{Dock=DockStyle.Fill,BackColor=Panel,Margin=new Padding(0,0,7,7),Padding=new Padding(9)};p.Paint+=(_,e)=>{using var pen=new Pen(Line);e.Graphics.DrawRectangle(pen,0,0,p.Width-1,p.Height-1);};p.Controls.Add(new Label{Text=title,Dock=DockStyle.Top,Height=28,ForeColor=Color.FromArgb(145,212,255),Font=new Font("Segoe UI",9,FontStyle.Bold),TextAlign=ContentAlignment.MiddleLeft});return p;}
+    static Button MakeButton(string text,Color color){var b=new Button{Text=text,FlatStyle=FlatStyle.Flat,BackColor=color,ForeColor=White,Font=new Font("Segoe UI",9,FontStyle.Bold),Cursor=Cursors.Hand};b.FlatAppearance.BorderSize=1;b.FlatAppearance.BorderColor=Line;return b;}
+    async Task ScanAsync(){scan.Enabled=false;status.Text="● Procurando dispositivos USB...";try{var found=await DeviceReader.DetectAsync();devices.Items.Clear();foreach(var d in found)devices.Items.Add(new DeviceChoice(d));if(devices.Items.Count>0){devices.SelectedIndex=0;status.Text=$"● {devices.Items.Count} aparelho(s) detectado(s)";platformTag.Text="Dispositivo encontrado por USB";}else status.Text="● Nenhum aparelho detectado — verifique cabo, drivers e autorização USB";}catch(Exception ex){status.Text="Erro na busca: "+ex.Message;}finally{scan.Enabled=true;}}
+    async Task ReadAsync(){if(devices.SelectedItem is not DeviceChoice choice){status.Text="● Conecte e selecione um aparelho primeiro.";return;}read.Enabled=false;grid.Rows.Clear();status.Text="● Lendo informações do dispositivo...";try{current=choice.Info.Platform=="Android"?await DeviceReader.ReadAndroidAsync(choice.Info.Id):await DeviceReader.ReadIPhoneAsync(choice.Info.Id);modelTitle.Text=current.Fields.TryGetValue("Modelo comercial",out var commercial)&&commercial!="Não disponibilizado pelo iOS/ferramenta"?commercial:current.Fields.TryGetValue("Modelo",out var model)&&!string.IsNullOrWhiteSpace(model)?model:choice.Info.Platform;platformTag.Text=current.Platform+" • USB";preview.Platform=current.Platform;preview.Model=modelTitle.Text;preview.Invalidate();grid.Rows.Add("Plataforma",current.Platform);grid.Rows.Add("ID USB / UDID",current.Id);foreach(var f in current.Fields)grid.Rows.Add(f.Key,f.Value);var bv=current.Fields.FirstOrDefault(x=>x.Key.Contains("Bateria (%)",StringComparison.OrdinalIgnoreCase)).Value??"";battery.Percent=ParsePercent(bv);battery.Health=current.Fields.FirstOrDefault(x=>x.Key.Contains("Saúde da bateria",StringComparison.OrdinalIgnoreCase)||x.Key.Contains("Estado da bateria",StringComparison.OrdinalIgnoreCase)).Value??"Não disponível";battery.Invalidate();var cap=current.Fields.FirstOrDefault(x=>x.Key.Contains("Capacidade total",StringComparison.OrdinalIgnoreCase)).Value;storageText.Text="Capacidade: "+(cap??"não disponível")+"\nConsulte os detalhes no relatório.";status.Text="● Leitura concluída — campos indisponíveis dependem do fabricante e do sistema.";}catch(Exception ex){status.Text="Falha na leitura: "+ex.Message;MessageBox.Show(this,ex.Message,"GSM CHECK TOOL",MessageBoxButtons.OK,MessageBoxIcon.Warning);}finally{read.Enabled=true;}}
+    static int ParsePercent(string v){var m=System.Text.RegularExpressions.Regex.Match(v??"",@"\d{1,3}");return m.Success&&int.TryParse(m.Value,out int n)&&n<=100?n:-1;}
+    void ClearReport(){current=null;grid.Rows.Clear();modelTitle.Text="Nenhum aparelho";platformTag.Text="Conecte um celular por USB";preview.Model="";preview.Platform="";preview.Invalidate();battery.Percent=-1;battery.Health="Não disponível";battery.Invalidate();storageText.Text="Capacidade: não disponível\nDetalhes no relatório completo";status.Text="● Relatório limpo.";}
+    void ExportReport(){if(current==null){MessageBox.Show(this,"Faça a leitura de um aparelho antes de salvar o relatório.","GSM CHECK TOOL",MessageBoxButtons.OK,MessageBoxIcon.Information);return;}using var sfd=new SaveFileDialog{Filter="Relatório de texto (*.txt)|*.txt",FileName=$"GSM_CHECK_{current.Platform}_{DateTime.Now:yyyyMMdd_HHmmss}.txt"};if(sfd.ShowDialog(this)!=DialogResult.OK)return;var sb=new StringBuilder();sb.AppendLine("GSM CHECK TOOL — RELATÓRIO");sb.AppendLine("Data: "+DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss"));sb.AppendLine("Plataforma: "+current.Platform);sb.AppendLine("ID/UDID: "+current.Id);sb.AppendLine(new string('-',60));foreach(var f in current.Fields)sb.AppendLine($"{f.Key}: {f.Value}");File.WriteAllText(sfd.FileName,sb.ToString(),Encoding.UTF8);status.Text="● Relatório exportado: "+sfd.FileName;}
+    sealed class DeviceChoice{public DeviceInfo Info{get;}public DeviceChoice(DeviceInfo i)=>Info=i;public override string ToString()=> $"{Info.Platform} | {Info.Id}";}
+}
+sealed class BrandMark : Panel
+{
+    protected override void OnPaint(PaintEventArgs e){base.OnPaint(e);var g=e.Graphics;g.SmoothingMode=SmoothingMode.AntiAlias;using var grad=new LinearGradientBrush(ClientRectangle,Color.FromArgb(0,180,255),Color.FromArgb(0,60,180),45f);g.FillRound(grad,new Rectangle(1,1,Width-2,Height-2),16);using var p=new Pen(Color.White,3);g.DrawRound(new Rectangle(19,9,35,48),8,p);g.DrawLine(p,29,16,44,16);g.DrawLine(p,30,49,43,49);using var lens=new Pen(Color.FromArgb(0,235,255),5);g.DrawEllipse(lens,33,30,27,27);g.DrawLine(lens,54,52,66,64);using var f=new Font("Segoe UI",7,FontStyle.Bold);g.DrawString("GSM",f,Brushes.White,15,64);}
+}
+static class RoundDrawing{public static void FillRound(this Graphics g,Brush b,Rectangle r,int d){using var p=Path(r,d);g.FillPath(b,p);}public static void DrawRound(this Graphics g,Rectangle r,int d,Pen pen){using var p=Path(r,d);g.DrawPath(pen,p);}static GraphicsPath Path(Rectangle r,int d){var p=new GraphicsPath();p.AddArc(r.X,r.Y,d,d,180,90);p.AddArc(r.Right-d,r.Y,d,d,270,90);p.AddArc(r.Right-d,r.Bottom-d,d,d,0,90);p.AddArc(r.X,r.Bottom-d,d,d,90,90);p.CloseFigure();return p;}}
+sealed class DevicePreview : Panel
+{
+    public string Platform{get;set;}="";public string Model{get;set;}="";
+    protected override void OnPaint(PaintEventArgs e){base.OnPaint(e);var g=e.Graphics;g.SmoothingMode=SmoothingMode.AntiAlias;g.Clear(Color.FromArgb(9,21,39));int h=Math.Min(245,Height-38);if(h<80)return;int w=(int)(h*.53),x=(Width-w)/2,y=Math.Max(12,(Height-h)/2-8);using var body=new LinearGradientBrush(new Rectangle(x,y,w,h),Color.FromArgb(98,121,157),Color.FromArgb(15,24,42),35f);g.FillRound(body,new Rectangle(x,y,w,h),23);using var edge=new Pen(Color.FromArgb(122,170,221),2);g.DrawRound(new Rectangle(x,y,w,h),23,edge);using var screen=new LinearGradientBrush(new Rectangle(x+7,y+8,w-14,h-16),Color.FromArgb(4,31,70),Color.FromArgb(0,5,18),90f);g.FillRound(screen,new Rectangle(x+7,y+8,w-14,h-16),18);using var glow=new Pen(Color.FromArgb(0,154,255),2);g.DrawLine(glow,x+12,y+h/3,x+w-12,y+h/3);using var notch=new SolidBrush(Color.FromArgb(3,6,15));if(Platform=="iPhone")g.FillRound(notch,new Rectangle(x+w/3,y+10,w/3,h/18+5),8);else g.FillEllipse(notch,x+w/2-5,y+11,10,10);using var font=new Font("Segoe UI",8,FontStyle.Bold);using var brush=new SolidBrush(Color.FromArgb(135,210,255));var label=Model.Length>24?Model[..24]+"…":Model;var s=g.MeasureString(label,font);g.DrawString(label,font,brush,(Width-s.Width)/2,Math.Min(Height-24,y+h+8));}
+}
+sealed class BatteryGauge : Panel
+{
+    public int Percent{get;set;}=-1;public string Health{get;set;}="Não disponível";
+    protected override void OnPaint(PaintEventArgs e){base.OnPaint(e);var g=e.Graphics;g.SmoothingMode=SmoothingMode.AntiAlias;g.Clear(Color.FromArgb(9,21,39));int d=Math.Min(Width/2,Math.Min(Height-35,122));if(d<35)return;var r=new Rectangle(10,(Height-d)/2-4,d,d);using var track=new Pen(Color.FromArgb(30,53,75),9);g.DrawArc(track,r,0,360);if(Percent>=0){using var p=new Pen(Percent<20?Color.OrangeRed:Color.FromArgb(0,226,118),9);p.StartCap=LineCap.Round;p.EndCap=LineCap.Round;g.DrawArc(p,r,-90,360f*Percent/100);}using var f=new Font("Segoe UI",16,FontStyle.Bold);using var b=new SolidBrush(Color.White);var txt=Percent>=0?Percent+"%":"—";var s=g.MeasureString(txt,f);g.DrawString(txt,f,b,r.X+(r.Width-s.Width)/2,r.Y+(r.Height-s.Height)/2);int tx=r.Right+12;using var hf=new Font("Segoe UI",8,FontStyle.Bold);using var mf=new Font("Segoe UI",8);using var m=new SolidBrush(Color.FromArgb(147,174,204));g.DrawString("CARGA ATUAL",hf,m,tx,Math.Max(15,r.Y+8));g.DrawString(Percent>=0?Percent+"%":"Não disponível",mf,b,tx,Math.Max(35,r.Y+29));g.DrawString("SAÚDE / ESTADO",hf,m,tx,Math.Max(65,r.Y+62));var h=Health.Length>18?Health[..18]+"…":Health;g.DrawString(h,mf,b,tx,Math.Max(85,r.Y+83));}
 }
