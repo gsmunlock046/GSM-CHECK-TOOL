@@ -8,7 +8,7 @@ public sealed class MainForm : Form
 {
     static readonly Color Bg=Color.FromArgb(6,10,20), CardBg=Color.FromArgb(12,21,37), Card2=Color.FromArgb(16,31,52), RowAlt=Color.FromArgb(14,27,46), Line=Color.FromArgb(35,58,86), Blue=Color.FromArgb(0,132,255), Cyan=Color.FromArgb(0,213,255), White=Color.FromArgb(239,246,255), Muted=Color.FromArgb(143,164,190), Green=Color.FromArgb(0,213,126);
     readonly ComboBox devices=new(); readonly DataGridView grid=new(); readonly Label status=new(); readonly DevicePreview preview=new(); readonly Label modelTitle=new(), platformTag=new(), detailCount=new(); Panel storageCard=new(); Label storageValue=new(); readonly System.Windows.Forms.Timer autoDetectTimer=new(){Interval=3000};
-    Button scan=new(),read=new(),export=new(),clear=new(); DeviceInfo? current; bool busy;
+    Button scan=new(),read=new(),export=new(),clear=new(); DeviceInfo? current; bool busy, detecting;
     public MainForm()
     {
         Text="GSM CHECK TOOL"; StartPosition=FormStartPosition.CenterScreen; MinimumSize=new Size(1000,680); Size=new Size(1370,850);
@@ -71,7 +71,8 @@ public sealed class MainForm : Form
     }
     async Task AutoDetectAsync()
     {
-        if(busy || IsDisposed || !IsHandleCreated)return;
+        if(busy || detecting || IsDisposed || !IsHandleCreated)return;
+        detecting=true;
         try
         {
             var found=await DeviceReader.DetectAsync();
@@ -82,12 +83,18 @@ public sealed class MainForm : Form
             devices.BeginUpdate();devices.Items.Clear();foreach(var d in found)devices.Items.Add(new DeviceChoice(d));devices.EndUpdate();
             var index=found.FindIndex(x=>x.Id.Equals(selected,StringComparison.OrdinalIgnoreCase));
             bool newlyFound=found.Any(x=>!existing.Contains(x.Id));
-            if(found.Count>0)devices.SelectedIndex=index>=0?index:0;
-            if(newlyFound){status.Text="●  Novo aparelho reconhecido — lendo dados automaticamente...";await ReadAsync();}
-            else if(found.Count==0){current=null;grid.Rows.Clear();detailCount.Text="0 campos";modelTitle.Text="Nenhum aparelho conectado";platformTag.Text="Conecte por USB";preview.Model="";preview.Platform="";preview.Invalidate();storageValue.Text="Aguardando aparelho";status.Text="●  Aparelho desconectado. Aguardando conexão USB...";}
+            bool selectedRemoved=selected is not null && !ids.Contains(selected);
+            if(found.Count>0)
+            {
+                if(newlyFound) { var newIndex=found.FindIndex(x=>!existing.Contains(x.Id)); devices.SelectedIndex=newIndex>=0?newIndex:0; }
+                else devices.SelectedIndex=index>=0?index:0;
+            }
+            if(found.Count==0){current=null;grid.Rows.Clear();detailCount.Text="0 campos";modelTitle.Text="Nenhum aparelho conectado";platformTag.Text="Conecte por USB";preview.Model="";preview.Platform="";preview.Invalidate();storageValue.Text="Aguardando aparelho";status.Text="●  Aparelho desconectado. Aguardando conexão USB...";}
+            else if(newlyFound || selectedRemoved){status.Text="●  Aparelho reconhecido — lendo dados automaticamente...";detecting=false;await ReadAsync();}
             else status.Text=$"●  Dispositivos atualizados: {found.Count} conectado(s).";
         }
         catch(Exception ex){status.Text="Falha na detecção automática: "+ex.Message;}
+        finally{detecting=false;}
     }
     async Task ReadAsync()
     {
@@ -103,7 +110,9 @@ public sealed class MainForm : Form
             var model=First(current.Fields,"Modelo comercial","Modelo","Identificador do modelo","Nome do dispositivo","Produto","Fabricante")??current.Platform;
             modelTitle.Text=model;platformTag.Text=current.Platform+"  •  Conectado por USB";preview.Platform=current.Platform;preview.Model=model;preview.Invalidate();
             var capacity=First(current.Fields,"Capacidade total","TotalDiskCapacity","Armazenamento /data");
-            storageValue.Text=capacity is null? $"{grid.Rows.Count} informações lidas\nDetalhes exibidos ao lado." : $"{grid.Rows.Count} informações lidas\nCapacidade: {capacity}";
+            var os=First(current.Fields,"Versão iOS","Versão Android","Build / compilação iOS","Build / compilação");
+            var serial=First(current.Fields,"Número de série");
+            storageValue.Text=$"{grid.Rows.Count} informações verificadas\nModelo: {model}\nSistema: {os??"não informado"}\nSérie: {serial??"não exposta"}\n{(capacity is null?"": "Armazenamento: "+capacity)}";
             detailCount.Text=$"{grid.Rows.Count} campos";status.Text=$"●  Leitura concluída — {grid.Rows.Count} campos válidos exibidos.";
         }
         catch(Exception ex){status.Text="Falha na leitura: "+ex.Message;MessageBox.Show(this,ex.Message,"GSM CHECK TOOL",MessageBoxButtons.OK,MessageBoxIcon.Warning);}
