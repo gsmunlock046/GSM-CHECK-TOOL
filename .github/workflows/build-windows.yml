@@ -1,0 +1,52 @@
+name: Build GSM CHECK TOOL Windows
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+permissions:
+  contents: read
+  actions: write
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+      - name: Restore and publish self-contained EXE
+        run: dotnet publish GSMCheckTool.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o artifacts/app
+      - name: Add Android platform tools
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Invoke-WebRequest 'https://dl.google.com/android/repository/platform-tools-latest-windows.zip' -OutFile "$env:RUNNER_TEMP\platform-tools.zip"
+          Expand-Archive "$env:RUNNER_TEMP\platform-tools.zip" "$env:RUNNER_TEMP\platform-tools" -Force
+          New-Item -ItemType Directory -Force -Path artifacts/app/tools | Out-Null
+          Copy-Item "$env:RUNNER_TEMP\platform-tools\platform-tools\adb.exe" artifacts/app/tools/adb.exe
+          Copy-Item "$env:RUNNER_TEMP\platform-tools\platform-tools\AdbWinApi.dll" artifacts/app/tools/AdbWinApi.dll
+          Copy-Item "$env:RUNNER_TEMP\platform-tools\platform-tools\AdbWinUsbApi.dll" artifacts/app/tools/AdbWinUsbApi.dll
+      - name: Add iPhone USB tools
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Invoke-WebRequest 'https://github.com/jrjr/libimobiledevice-windows/releases/latest/download/libimobile-suite-latest_w64.zip' -OutFile "$env:RUNNER_TEMP\libimobile.zip"
+          Expand-Archive "$env:RUNNER_TEMP\libimobile.zip" "$env:RUNNER_TEMP\libimobile" -Force
+          New-Item -ItemType Directory -Force -Path artifacts/app/tools/libimobiledevice | Out-Null
+          $bins = Get-ChildItem "$env:RUNNER_TEMP\libimobile" -Recurse -File
+          foreach ($f in $bins) { Copy-Item $f.FullName artifacts/app/tools/libimobiledevice/ -Force }
+          if (!(Test-Path artifacts/app/tools/libimobiledevice/idevice_id.exe)) { throw 'idevice_id.exe not found in downloaded libimobiledevice package' }
+          if (!(Test-Path artifacts/app/tools/libimobiledevice/ideviceinfo.exe)) { throw 'ideviceinfo.exe not found in downloaded libimobiledevice package' }
+      - name: Verify package
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if (!(Test-Path artifacts/app/GSM_CHECK_TOOL.exe)) { throw 'Executable was not generated' }
+          if (!(Test-Path artifacts/app/tools/adb.exe)) { throw 'ADB missing' }
+          if (!(Test-Path artifacts/app/tools/libimobiledevice/idevice_id.exe)) { throw 'iPhone USB support missing' }
+          Get-ChildItem artifacts/app -Recurse | Select-Object FullName,Length
+      - uses: actions/upload-artifact@v4
+        with:
+          name: GSM-CHECK-TOOL-Windows-x64
+          path: artifacts/app/
+          retention-days: 14
