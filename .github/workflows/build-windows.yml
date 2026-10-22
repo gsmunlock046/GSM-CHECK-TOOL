@@ -14,6 +14,14 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: 8.0.x
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Generate brand logo and Windows icon
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check pillow
+          python assets/create_brand_assets.py
       - name: Restore and publish self-contained EXE
         run: dotnet publish GSMCheckTool.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -o artifacts/app
       - name: Add Android platform tools
